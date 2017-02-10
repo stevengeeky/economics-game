@@ -47,7 +47,7 @@ let monResponse = [];
 // Global test subject information
 let currIter = 0, currRound = -1, currNumSubmitted = 0, goingToChangeRounds = false;
 
-let iterationAmount = options.number_of_iterations || 30;
+let iterationAmount = (options.number_of_iterations || 30) + 1;
 
 // The output data (inputted to choiceAlgorithms, if you remember/have looked at the file)
 let allData = {}, maxYValue = {};
