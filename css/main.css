@@ -1,0 +1,75 @@
+* {
+    margin:0;
+    padding:0;
+}
+
+.control_area {
+    padding:1vmin;
+    text-align:center;
+}
+
+button {
+    padding:1vmin;
+    margin:3vh 3vw 3vh 3vw;
+    border-radius:1vmin;
+    border:none;
+    font-size:4vmin;
+    color:white;
+    background-color:#00a;
+    transition:background-color .5s;
+}
+
+button:hover {
+    background-color:#00f;
+}
+
+button.submit {
+    color:white;
+    background:#0000aa;
+    border:1pt solid #0000bb;
+    padding:1vmin;
+    font-size:4vmin;
+    transition:background .5s, border .5s;
+}
+button.submit:hover {
+    background:#0000dd;
+    border:1pt solid #0000ee;
+}
+button:disabled {
+    background:#aaa;
+}
+
+.banner {
+    position:fixed;
+    left:0;
+    top:0;
+    right:0;
+    bottom:0;
+    font-size:3vmin;
+}
+.payout {
+    color:#333;
+    font-size:2.5vmin;
+}
+
+.container {
+    position:fixed;
+    left:50vw;
+    top:50vh;
+    transform:translate(-50%, -50%);
+    text-align:center;
+}
+
+.welcome {
+    opacity:0;
+    transition:opacity 1s;
+}
+
+.container p {
+    text-align:left;
+}
+
+.other_info {
+    text-align:center;
+    padding:2vmin;
+}

@@ -1,0 +1,120 @@
+/*
+    main style sheet
+    by steven o'riley
+*/
+
+/* Remove default margin and padding of everything */
+* {
+    margin:0;
+    padding:0;
+}
+
+/* For anchor link styling */
+a {
+    text-decoration:none;
+    color:#00a;
+    transition: color .6s;
+}
+a:hover {
+    color:#f0c;
+}
+
+/* For the main parent of all items */
+.banner {
+    position:fixed;
+    left:0;
+    top:0;
+    right:0;
+    bottom:0;
+}
+
+/* For the main container of all items */
+.container {
+    padding:1vmin;
+    position:fixed;
+    left:50vw;
+    top:50vh;
+    transform:translate(-50%, -50%);
+}
+.container * {
+    margin:1vmin;
+    font-size:6vmin;
+}
+
+/* Display text */
+.hello {
+    transition:opacity 1s;
+}
+
+/* All buttons */
+button {
+    background:#0000aa;
+    color:white;
+    border:#000066;
+    padding:.5vmin;
+    transition:background .5s;
+}
+button:hover {
+    background:#0000ff;
+}
+
+/* All inputs */
+input {
+    padding:.5vmin;
+    border-width:0 0 1px 0;
+    border-style:solid;
+    border-color:#aaaaaa;
+}
+
+/* Control button styles */
+.startTest, .endTest, .beginUsers, .endUsers, .startPractice, .endPractice, .killEverything {
+    padding:1vmin;
+    border-radius:1vmin;
+    font-size:4vmin;
+    color:white;
+    transition:background-color .5s;
+}
+/* ...and when they're disabled */
+.startTest:disabled, .endTest:disabled, .beginUsers:disabled, .endUsers:disabled, .startPractice:disabled, .endPractice:disabled, .killEverything:disabled {
+    background-color:#aaaaaa !important;
+}
+
+/* 'start accepting' button */
+.beginUsers {
+    background-color:#00aa00;
+}
+.beginUsers:hover {
+    background-color:#00ff00;
+}
+
+/* 'start testing' button */
+.startTest {
+    background-color:#0000aa;
+}
+.startTest:hover {
+    background-color:#0000ff;
+}
+
+/* 'start practice' button */
+.startPractice {
+    background-color:#aa4400;
+}
+.startPractice:hover {
+    background-color:#cc7700;
+}
+
+/* 'end testing', 'stop accepting', and 'end practice' buttons */
+.endTest, .endUsers, .endPractice, .killEverything {
+    background:#aa0000;
+}
+.endTest:hover, .endUsers:hover, .endPractice:hover, .killEverything:hover {
+    background:#ff0000;
+}
+
+.killEverything {
+    margin-top: 20vmin;
+}
+
+.subjects, .subjects b {
+    font-size:3vmin;
+}
