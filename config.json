@@ -3,7 +3,7 @@
     "killTimeout": "null",
     "max_sync_attempts": 5,
     "number_of_iterations": 100,
-    "people_per_group": 4,
+    "people_per_group": 5,
     "delete_previous_collective_data_logging_upon_data_write": true,
     "output_format": "csv"
 }
