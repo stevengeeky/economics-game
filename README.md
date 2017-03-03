@@ -61,6 +61,10 @@ In `/scripts/choiceAlgorithms.js`, there are methods for `randomValue` and `cons
 
 ## Release Notes
 
+1.0.4
+
+* Added round caching in case a host sends back a 503 and all data is otherwise lost
+
 1.0.3
 
 * Added round indexing in cached client information

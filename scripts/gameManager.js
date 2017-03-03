@@ -9,6 +9,7 @@
 // Just some modules we need later
 // ...for writing to files
 let fs = require('fs');
+
 // ...and handling options
 let options = require('./getOptions');
 // ...and for returning random/constant values
@@ -414,6 +415,13 @@ let handleCode = (request, response, syncNumber) => {
                     collectedData[round_string] = cloneObj(allData[round_string]);
                     csvWrapper[round_string] = cloneObj(csvPlayers);
                     
+                    let save = makeDataOutput(collectedData);
+                    let outStr = `data/output${new Date().getTime()}.tmp.${getOutputLastName()}`;
+                    
+                    if (!fs.existsSync("data"))
+                        fs.mkdirSync("data");
+                    fs.writeFile(outStr, save);
+                    
                     restartTest(rstring);
                     choiceAlgorithms['roundChanged']();
                     
@@ -509,8 +517,11 @@ let handleCode = (request, response, syncNumber) => {
                         csvWrapper[round_string] = cloneObj(csvPlayers);
                         
                         let string = makeDataOutput(collectedData);
-                        
                         let outStr = `data/output${new Date().getTime()}.${getOutputLastName()}`;
+                        
+                        if (!fs.existsSync("data"))
+                            fs.mkdirSync("data");
+                        
                         fs.writeFile(outStr, string, function() {
                             if (options.delete_previous_collective_data_logging_upon_data_write) {
                                 collectedData = {};
