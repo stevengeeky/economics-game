@@ -56,9 +56,6 @@ Once the test has ended, and all clients have submitted their final switch or st
 ## Algorithms
 In `/scripts/choiceAlgorithms.js`, there are methods for `randomValue` and `constantValue` which are called when a client has selected a random or constant value in the game. These algorithms are supplied with the data from every subject from every round in the game. They are additionally supplied with the id of the client who has requested a random or constant value.
 
-## Todo
-* Add concise instructions for subjects to read before the test starts
-
 ## Release Notes
 
 1.0.4.1
