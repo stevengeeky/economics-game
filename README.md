@@ -61,6 +61,11 @@ In `/scripts/choiceAlgorithms.js`, there are methods for `randomValue` and `cons
 
 ## Release Notes
 
+1.0.4.1
+
+* Revised the output.csv file to organize by group, instead of by playerID
+* Added logging for the server's globally unique ID for each client to track clients' decision progress even after each test is over
+
 1.0.4
 
 * Added round caching in case a host sends back a 503 and all data is otherwise lost
