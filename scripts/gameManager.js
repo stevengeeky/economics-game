@@ -510,7 +510,7 @@ let handleCode = (request, response, syncNumber) => {
                             
                             // (Player Identifer,) Player ID, Group ID, Choice (P or Q, 1 -> P, 0 -> Q), Payoff, Iteration, Round, Theta, X, x, Q
                             
-                            csvPlayers[cid + " " + group + " " + (startIter + 1) + " " + (startRound + 1)] = `${client.id},${cid},${group},${data[iter_string]['choice'][j] == 'random' ? 0 : 1},${data[iter_string]['values'][cid]},${data['iterations']},${startRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${old_client_average[group]},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
+                            csvPlayers[j + " " + (startIter + 1) + " " + (startRound + 1)] = `${client.realid},${cid},${group},${data[iter_string]['choice'][j] == 'random' ? 0 : 1},${data[iter_string]['values'][cid]},${data['iterations']},${startRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${old_client_average[group]},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
                             
                             return "finalize_end";
                         });
@@ -556,7 +556,7 @@ let handleCode = (request, response, syncNumber) => {
                             
                             // (Player Identifer,) Player ID, Group ID, Choice (P or Q, 1 -> P, 0 -> Q), Payoff, Iteration, Round, Theta, X, x, Q
                             
-                            csvPlayers[cid + " " + group + " " + (currIter + 1) + " " + (currRound + 1)] = `${client.id},${cid},${group},${data[iter_string]['choice'][cid] == 'random' ? 0 : 1},${clientValues[cid]},${data['iterations']},${currRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${data[iter_string]['average_new_offer']},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
+                            csvPlayers[j + " " + (currIter + 1) + " " + (currRound + 1)] = `${client.realid},${cid},${group},${data[iter_string]['choice'][cid] == 'random' ? 0 : 1},${clientValues[cid]},${data['iterations']},${currRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${data[iter_string]['average_new_offer']},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
                             
                             let stuff = { "value": clientValues[cid], "average_value": clientAverage, "message": "round_passed", "accumulation": data[iter_string]["accumulation"][cid], "average_accumulation": data[iter_string]["average_accumulation"], "iteration": data["iterations"], "in": id_in.length, "out": id_out.length, "subjects": numberOfSubjects, "max": clientMax, "choice": data[iter_string]["choice"][cid], "const": clientValues["const"][cid], "rand": clientValues["rand"][cid] };
                             
@@ -748,8 +748,8 @@ let makeDataOutput = (data) => {
             
             for (let j in csvWrapper[i]) {
                 let jsp = (j + "").split(" ");
-                organized[i][jsp[1]] = organized[i][jsp[1]] || "";
-                organized[i][jsp[1]] += csvWrapper[i][j] + "\n";
+                organized[i][jsp[0]] = organized[i][jsp[0]] || "";
+                organized[i][jsp[0]] += csvWrapper[i][j] + "\n";
             }
         }
         

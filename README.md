@@ -58,6 +58,11 @@ In `/scripts/choiceAlgorithms.js`, there are methods for `randomValue` and `cons
 
 ## Release Notes
 
+1.0.4.2
+
+* Revised global ids to display as the initially set url ids of each client
+* Sorted end csv by |<(g<sub>id</sub> - g<sub>id</sub> % K) / K, g<sub>id</sub> % K>| &rarr; <i>g<sub>id</sub></i>
+
 1.0.4.1
 
 * Revised the output.csv file to organize by group, instead of by playerID
