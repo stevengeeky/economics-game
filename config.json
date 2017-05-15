@@ -1,5 +1,5 @@
 {
-    "PORT": "process.env.PORT",
+    "PORT": "8888",
     "killTimeout": "null",
     "max_sync_attempts": 5,
     "number_of_iterations": 10,

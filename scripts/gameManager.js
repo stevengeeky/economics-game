@@ -268,6 +268,7 @@ let handleCode = (request, response, syncNumber) => {
                     // Let the clients know the test has started
                     broadcast((i, client) => {
                         let j = client.realid, group = getGroupNumber(j), cid = getModulatedId(j);
+                        
                         let data = allData[round_string][group], clientValues = allClientValues[round_string][group], id_in = allIdIn[round_string][group], id_out = allIdOut[round_string][group];
                         
                         return ({ "value": clientValues[cid] || 0, "average_value": stats.mu(clientValues['random']) || 0, "message": "begin", "iteration": data["iterations"], "in": id_in.length, "out": id_out.length, "subjects": id_in.length + id_out.length, "accumulation": clientValues[cid], "average_accumulation": 0, "const": clientValues['const'][cid], "rand": clientValues['rand'][cid] });
@@ -506,11 +507,13 @@ let handleCode = (request, response, syncNumber) => {
                         
                         broadcast((i, client) => {
                             let j = client.realid, group = getGroupNumber(j), cid = getModulatedId(j);
+                            let gid = rawCachedIds.indexOf(client.id) + 1;
+                            
                             let data = allData[round_string][group], clientValues = allClientValues[round_string][group], id_in = allIdIn[round_string][group], id_out = allIdOut[round_string][group];
                             
                             // (Player Identifer,) Player ID, Group ID, Choice (P or Q, 1 -> P, 0 -> Q), Payoff, Iteration, Round, Theta, X, x, Q
                             
-                            csvPlayers[j + " " + (startIter + 1) + " " + (startRound + 1)] = `${client.realid},${cid},${group},${data[iter_string]['choice'][j] == 'random' ? 0 : 1},${data[iter_string]['values'][cid]},${data['iterations']},${startRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${old_client_average[group]},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
+                            csvPlayers[gid + " " + (startIter + 1) + " " + (startRound + 1)] = `${gid},${cid},${group},${data[iter_string]['choice'][j] == 'random' ? 0 : 1},${data[iter_string]['values'][cid]},${data['iterations']},${startRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${old_client_average[group]},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
                             
                             return "finalize_end";
                         });
@@ -547,6 +550,7 @@ let handleCode = (request, response, syncNumber) => {
                         
                         broadcast((i, client) => {
                             let j = client.realid, group = getGroupNumber(j), cid = getModulatedId(j);
+                            let gid = rawCachedIds.indexOf(client.id) + 1;
                             
                             validateInformationExistence(iter_string, round_string, group);
                             
@@ -556,7 +560,7 @@ let handleCode = (request, response, syncNumber) => {
                             
                             // (Player Identifer,) Player ID, Group ID, Choice (P or Q, 1 -> P, 0 -> Q), Payoff, Iteration, Round, Theta, X, x, Q
                             
-                            csvPlayers[j + " " + (currIter + 1) + " " + (currRound + 1)] = `${client.realid},${cid},${group},${data[iter_string]['choice'][cid] == 'random' ? 0 : 1},${clientValues[cid]},${data['iterations']},${currRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${data[iter_string]['average_new_offer']},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
+                            csvPlayers[gid + " " + (currIter + 1) + " " + (currRound + 1)] = `${gid},${cid},${group},${data[iter_string]['choice'][cid] == 'random' ? 0 : 1},${clientValues[cid]},${data['iterations']},${currRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${data[iter_string]['average_new_offer']},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
                             
                             let stuff = { "value": clientValues[cid], "average_value": clientAverage, "message": "round_passed", "accumulation": data[iter_string]["accumulation"][cid], "average_accumulation": data[iter_string]["average_accumulation"], "iteration": data["iterations"], "in": id_in.length, "out": id_out.length, "subjects": numberOfSubjects, "max": clientMax, "choice": data[iter_string]["choice"][cid], "const": clientValues["const"][cid], "rand": clientValues["rand"][cid] };
                             
