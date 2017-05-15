@@ -23,7 +23,7 @@ let killTimeout = options.killTimeout || 5000;
 // clients has everyone in the test now,
 // rawClientIds has the ids of everyone in the test,
 // rawCachedIds has the ids of everyone who is allowed in the test after testing has started
-let clients = [], rawClientIds = [], rawCachedIds = [];
+let clients = [], rawClientIds = [], rawCachedIds = [], rawCachedLookupIds = [];
 
 let people_per_group = options.people_per_group;
 
@@ -210,6 +210,7 @@ let handleCode = (request, response, syncNumber) => {
                     clients = [];
                     rawClientIds = [];
                     rawCachedIds = [];
+                    rawCachedLookupIds = [];
                     
                     allClientValues = {};
                     allClientSubmits = {};
@@ -261,7 +262,7 @@ let handleCode = (request, response, syncNumber) => {
                 }
                 // Start the test
                 else if (quest == "startTest") {
-                    rawCachedIds = cloneObj(rawClientIds);
+                    //rawCachedIds = cloneObj(rawClientIds);
                     round_string = `Round ${currRound + 2}`;
                     restartTest(round_string);
                     
@@ -507,7 +508,7 @@ let handleCode = (request, response, syncNumber) => {
                         
                         broadcast((i, client) => {
                             let j = client.realid, group = getGroupNumber(j), cid = getModulatedId(j);
-                            let gid = rawCachedIds.indexOf(client.id) + 1;
+                            let gid = rawCachedLookupIds[rawCachedIds.indexOf(client.id)];
                             
                             let data = allData[round_string][group], clientValues = allClientValues[round_string][group], id_in = allIdIn[round_string][group], id_out = allIdOut[round_string][group];
                             
@@ -550,7 +551,7 @@ let handleCode = (request, response, syncNumber) => {
                         
                         broadcast((i, client) => {
                             let j = client.realid, group = getGroupNumber(j), cid = getModulatedId(j);
-                            let gid = rawCachedIds.indexOf(client.id) + 1;
+                            let gid = rawCachedLookupIds[rawCachedIds.indexOf(client.id)];
                             
                             validateInformationExistence(iter_string, round_string, group);
                             
@@ -724,10 +725,8 @@ let validateInformationExistence = (iter_string, round_string, group) => {
 let reassertClients = () => {
     // ...then recalculate the client id arrays
     rawClientIds = [];
-    rawCachedIds = [];
     for (var i in clients) {
         rawClientIds.push(clients[i].id);
-        rawCachedIds.push(clients[i].id);
     }
 };
 
@@ -797,8 +796,10 @@ function broadcast(message) {
 function addClient(id, ponse, realid) {
     // Well, they showed up, so add their id into the cache
     var second_index = rawCachedIds.indexOf(id);
-    if (second_index == -1)
+    if (second_index == -1) {
         rawCachedIds.push(id);
+        rawCachedLookupIds.push(realid);
+    }
     
     // But if they aren't here now, then they should be here. So add them
     var index = rawClientIds.indexOf(id);
