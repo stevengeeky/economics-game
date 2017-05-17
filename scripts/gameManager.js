@@ -428,9 +428,13 @@ let handleCode = (request, response, syncNumber) => {
                     choiceAlgorithms['roundChanged']();
                     
                     let setOfNumbers = [];
+                    let constants = options.constant_groups || [];
                     
-                    for (let i = 1; i <= numberOfSubjects; i++)
+                    for (let i = 1; i <= numberOfSubjects; i++) {
+                        if (constants.indexOf(getModulatedId(i)) != -1)
+                            continue;
                         setOfNumbers.push(i);
+                    }
                     
                     let groupAverage = {};
                     let groupMax = {};
@@ -448,7 +452,7 @@ let handleCode = (request, response, syncNumber) => {
                         let clientAverage = groupAverage[group];
                         let clientMax = maxYValue[group];
                         
-                        let newrid = setOfNumbers.splice(Math.floor(Math.random() * setOfNumbers.length), 1)[0];
+                        let newrid = constants.indexOf(cid) != -1 ? j : setOfNumbers.splice(Math.floor(Math.random() * setOfNumbers.length), 1)[0];
                         
                         return ({ "value": options.initial_value, "average_value": clientAverage, "message": "restart", "new_realid": newrid, "iteration": data["iterations"], "round": currRound + 1, "in": id_in.length, "out": id_out.length, "subjects": id_in.length + id_out.length, "accumulation": options.initial_value, "average_accumulation": clientAverage, "max": clientMax, "const": clientValues['const'][cid], "rand": clientValues['rand'][cid] });
                     });
