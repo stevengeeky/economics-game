@@ -1,7 +1,7 @@
 /**
  * @name main server file
  * @author steven o'riley
- * @desc the server main file; handles all server-side attributes
+ * @desc the main server file; handles all server-side attributes
  */
 
 'use strict';

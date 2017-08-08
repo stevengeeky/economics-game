@@ -3,8 +3,9 @@
     "killTimeout": "null",
     "max_sync_attempts": 5,
     "number_of_iterations": 10,
-    "people_per_group": 1,
+    "people_per_group": 2,
     "delete_previous_collective_data_logging_upon_data_write": true,
     "output_format": "csv",
-    "constant_groups": [1]
+    "x_visible_to_out_subjects": false,
+    "constant_groups": []
 }

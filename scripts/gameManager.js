@@ -91,6 +91,7 @@ let groups = {};
 // Here we go...
 /**
  * Handles a request which has been detected to be a game code
+ * This method is basically the bridge from the server to the internal game
  */
 let handleCode = (request, response, syncNumber) => {
     // Parsing...
@@ -116,6 +117,7 @@ let handleCode = (request, response, syncNumber) => {
     
     let clientid = +attribs.realid || 0;
     
+    // Visual information
     let round_string = `Round ${currRound + 1}`;
     let iter_string = `Iteration ${currIter + 1}`;
     let prev_iter_string = `Iteration ${currIter}`;
@@ -131,21 +133,25 @@ let handleCode = (request, response, syncNumber) => {
             reassertClients();
     }
     
+    // If we're talking to a client...
     if (!("monitor" in attribs)) {
         allData[round_string] = allData[round_string] || {};
         
         if (!clientid && id in rawClientIds)
             clientid = clients[rawClientIds.indexOf(id)].realid;
         
+        // if the client didn't submit their id, send a 404
         if (!clientid) {
             response.writeHead(404);
             response.end("-");
             return;
         }
         else {
-            group = getGroupNumber(+clientid);
-            mod = getModulatedId(+clientid);
+            // associated client attributes from the newly pending client, i.e.
+            group = getGroupNumber(+clientid);  // group id
+            mod = getModulatedId(+clientid);    // id in that group
             
+            // make sure storage objects exist for later
             allData[round_string] = allData[round_string] || {};
             allClientValues[round_string] = allClientValues[round_string] || {};
             allClientSubmits[round_string] = allClientSubmits[round_string] ||{};
@@ -187,6 +193,7 @@ let handleCode = (request, response, syncNumber) => {
                 response.end("-");
             else {
                 // Alright, now check the monitor commands
+                // this is where the monitor control panel buttons get linked to
                 
                 // Test to see if monitoring is allowed
                 if (quest == "test") {
@@ -199,6 +206,7 @@ let handleCode = (request, response, syncNumber) => {
                 // Kill everything
                 else if (quest == "killEverything") {
                     // Note that 'acceptClients' is the only value not cleared
+                    // every other value is cleared, clients get sent a message telling them the test has been killed
                     allData = {};
                     codes = {};
                     clientTokens = {};
@@ -228,7 +236,7 @@ let handleCode = (request, response, syncNumber) => {
                     allData = {};
                     response.end("+");
                 }
-                // Get the status for testing and client acceptance
+                // Get the status of the game for testing and client acceptance
                 else if (quest == "checkStatus") {
                     let arr = [];
                     if (acceptClients)
@@ -268,11 +276,20 @@ let handleCode = (request, response, syncNumber) => {
                     
                     // Let the clients know the test has started
                     broadcast((i, client) => {
+                        // For each client, send them back a list of important information
+                        // This information is broadcasted for each new iteration, and for each new round
                         let j = client.realid, group = getGroupNumber(j), cid = getModulatedId(j);
                         
                         let data = allData[round_string][group], clientValues = allClientValues[round_string][group], id_in = allIdIn[round_string][group], id_out = allIdOut[round_string][group];
                         
-                        return ({ "value": clientValues[cid] || 0, "average_value": stats.mu(clientValues['random']) || 0, "message": "begin", "iteration": data["iterations"], "in": id_in.length, "out": id_out.length, "subjects": id_in.length + id_out.length, "accumulation": clientValues[cid], "average_accumulation": 0, "const": clientValues['const'][cid], "rand": clientValues['rand'][cid] });
+                        // Broadcast... the client's current iteration value, the average value of
+                        // all clients who are in, a message saying 'begin' the test, what iteration we
+                        // are on, how many are in, how many are out, how many subjects there are, how
+                        // much the current client has gained across all iterations thus far, the
+                        // average accumulation of all clients, what the current client's constant
+                        // choice is, and what the current client's random choice is
+                        
+                        return ({ "value": clientValues[cid] || 0, "average_value": stats.mu(clientValues['random']) || 0, "message": "begin", "iteration": data["iterations"], "in": id_in.length, "out": id_out.length, "subjects": id_in.length + id_out.length, "accumulation": clientValues[cid], "average_accumulation": 0, "const": clientValues['const'][cid], "rand": clientValues['rand'][cid], "x_visible_to_out_subjects": options.x_visible_to_out_subjects || false });
                     });
                     
                     response.end("+");
@@ -316,20 +333,27 @@ let handleCode = (request, response, syncNumber) => {
          * If it doesn't speak of its own existence, then it shouldn't exist in the first place
          * #servergoals
          */
+        // This makes the server free of websockets
         command == "alive" ? () => {
+            // laissez-faire server, smooth sailing, aka don't drop clients who haven't pinged in a while
             if (killTimeout == "null") {
                 response.writeHead(200, { "Content-Type": "text/plain" });
                 response.end("+");
                 return;
             }
+            // else..
             
+            // after a certain amount of time, if the client hasn't logged their existence, drop them
             let kill = Math.random();
             if (clientTimeouts[id])
                 clearTimeout(clientTimeouts[id]);
             clientTokens[id] = kill;
             
+            // after a certain amount of time
             clientTimeouts[id] = setTimeout(() => {
+                // if the client hasn't logged their existence..
                 if (clientTokens[id] == kill) {
+                    // drop them
                     let index = rawClientIds.indexOf(id);
                     let sindex = rawCachedIds.indexOf(id);
                     if (index != -1) {
@@ -349,6 +373,7 @@ let handleCode = (request, response, syncNumber) => {
             response.end("+");
         } :
         
+        // client submits a decision
         command == "submit" ? () => {
             if (rawCachedIds.indexOf(id) == -1 || !testingInProgress) {
                 response.writeHead(404);
@@ -357,6 +382,7 @@ let handleCode = (request, response, syncNumber) => {
             }
             
             allClientSubmits[round_string][id] = allClientSubmits[round_string][id] || {};
+            // if the client already made a decision, ignore this new request
             if (allClientSubmits[round_string][id][iter_string]) {
                 response.writeHead(200, { "Content-Type": "text/plain" });
                 response.end("");
@@ -364,9 +390,13 @@ let handleCode = (request, response, syncNumber) => {
             }
             allClientSubmits[round_string][id][iter_string] = true;
             
+            // get what choice they made (random or constant)
             let choice = attribs['choice'];
+            
+            // one of these, in or out, will be -1; the one that isn't is where the client was last round 
             let ind_in = allIdIn[round_string][group].indexOf(mod), ind_out = allIdOut[round_string][group].indexOf(mod);
             
+            // for debugging. if you want to see what has happened before one submit has happened, check if oneSubmit is false
             if (!oneSubmit)
                 oneSubmit = true;
             
@@ -374,12 +404,15 @@ let handleCode = (request, response, syncNumber) => {
             
             allData[round_string][group][iter_string]["choice"][mod] = choice;
             
+            // if the client made a random choice now...
             if (choice == 'random') {
+                // if they weren't in, make them in
                 if (ind_in == -1) {
                     allIdIn[round_string][group].push(mod);
                     allClientValues[round_string][group][mod] = allClientValues[round_string][group]['rand'][mod];
                     allClientValues[round_string][group]['random'].push(allClientValues[round_string][group]['rand'][mod]);
                 }
+                // if they were out, make them not out
                 if (ind_out != -1) {
                     allIdOut[round_string][group].splice(ind_out, 1);
                     allClientValues[round_string][group]['constant'].splice(ind_out, 1);
@@ -387,12 +420,15 @@ let handleCode = (request, response, syncNumber) => {
                 
                 allData[round_string][group][iter_string]['in'][mod] = allClientValues[round_string][group][mod];
             }
+            // if the client made a constant choice now...
             else if (choice == 'constant') {
+                // if they weren't out, make them out
                 if (ind_out == -1) {
                     allIdOut[round_string][group].push(mod);
                     allClientValues[round_string][group][mod] = allClientValues[round_string][group]['const'][mod];
                     allClientValues[round_string][group]['constant'].push(allClientValues[round_string][group]['const'][mod]);
                 }
+                // if they were in, make them not in
                 if (ind_in != -1) {
                     allIdIn[round_string][group].splice(ind_in, 1);
                     allClientValues[round_string][group]['random'].splice(ind_in, 1);
@@ -401,22 +437,29 @@ let handleCode = (request, response, syncNumber) => {
                 allData[round_string][group][iter_string]['out'][mod] = allClientValues[round_string][group][mod];
             }
             
+            // update information about the client's accumulation, as well as locally global 
+            // accumulation information about all current iteration client values
             allData[round_string][group][iter_string]["accumulation"][mod] = (allData[round_string][group][prev_iter_string] ? allData[round_string][group][prev_iter_string]["accumulation"][mod] || 0 : 0) + allClientValues[round_string][group][mod];
             allData[round_string][group][iter_string]["accumulation"]["values"].push(allData[round_string][group][iter_string]["accumulation"][mod]);
             
+            // update iteration value information, about this client
             allData[round_string][group][iter_string]["values"][mod] = allClientValues[round_string][group][mod];
+            // ..and about all clients
             allData[round_string][group][iter_string]["values"]["values"].push(allClientValues[round_string][group][mod]);
             
+            // if all clients have submitted a decision..
             if (++currNumSubmitted == numberOfSubjects) {
                 currNumSubmitted = 0;
                 
-                // Restarting the rounds
+                // Restart the round if we've gone through all iterations
                 if (++currIter >= iterationAmount && monResponse.length == 0) {
+                    // temporarily updated round string
                     let rstring = `Round ${currRound + 2}`;
                     collectedData = collectedData || {};
                     collectedData[round_string] = cloneObj(allData[round_string]);
                     csvWrapper[round_string] = cloneObj(csvPlayers);
                     
+                    // write temporary data information
                     let save = makeDataOutput(collectedData);
                     let outStr = `data/output${new Date().getTime()}.tmp.${getOutputLastName()}`;
                     
@@ -424,18 +467,22 @@ let handleCode = (request, response, syncNumber) => {
                         fs.mkdirSync("data");
                     fs.writeFile(outStr, save);
                     
+                    // officially restart the test and reset choice information (random/constant values for each client)
                     restartTest(rstring);
                     choiceAlgorithms['roundChanged']();
                     
+                    // randomize the list of subjects
                     let setOfNumbers = [];
                     let constants = options.constant_groups || [];
                     
                     for (let i = 1; i <= numberOfSubjects; i++) {
-                        if (constants.indexOf(getModulatedId(i)) != -1)
+                        // if the subject is in the list of groups that are set to remain constant, don't randomize it
+                        if (constants.indexOf(getGroupNumber(i)) != -1)
                             continue;
                         setOfNumbers.push(i);
                     }
                     
+                    // calculate basic initial stat information about all clients
                     let groupAverage = {};
                     let groupMax = {};
                     for (let i = 1; i <= numberOfGroups; i++) {
@@ -452,11 +499,15 @@ let handleCode = (request, response, syncNumber) => {
                         let clientAverage = groupAverage[group];
                         let clientMax = maxYValue[group];
                         
-                        let newrid = constants.indexOf(cid) != -1 ? j : setOfNumbers.splice(Math.floor(Math.random() * setOfNumbers.length), 1)[0];
+                        let newrid = constants.indexOf(group) != -1 ? j : setOfNumbers.splice(Math.floor(Math.random() * setOfNumbers.length), 1)[0];
+                        
+                        // again, return important information personalized to each client
+                        // this time also deliver what the subject's new realid is
                         
                         return ({ "value": options.initial_value, "average_value": clientAverage, "message": "restart", "new_realid": newrid, "iteration": data["iterations"], "round": currRound + 1, "in": id_in.length, "out": id_out.length, "subjects": id_in.length + id_out.length, "accumulation": options.initial_value, "average_accumulation": clientAverage, "max": clientMax, "const": clientValues['const'][cid], "rand": clientValues['rand'][cid] });
                     });
                 }
+                // if we haven't gone through all of our iterations, go to the next iteration
                 else {
                     let old_client_average = {};
                     
@@ -464,13 +515,17 @@ let handleCode = (request, response, syncNumber) => {
                     for (let g = 1; g <= numberOfGroups; g++) {
                         old_client_average[g] = stats.mu(allClientValues[round_string][g]['random']) || 0;
                         
+                        // reset random/constant value choices
                         allClientValues[round_string][g]['random'] = [];
                         allClientValues[round_string][g]['constant'] = [];
                         
+                        // reset global information about each group
                         allData[round_string][g] = allData[round_string][g] || {};
                         allData[round_string][g]["iterations"] = currIter;
                         
+                        // new iteration, new choices for everyone
                         for (var i = 0; i < allIdIn[round_string][g].length; i++) {
+                            // for everyone who is in, give them new random/constant values to choose from
                             let value = choiceAlgorithms['random'](allData[round_string][g], allIdIn[round_string][g][i], (g - 1) * people_per_group + allIdIn[round_string][g][i], g);
                             let alt = choiceAlgorithms['constant'](allData[round_string][g], allIdIn[round_string][g][i], (g - 1) * people_per_group + allIdIn[round_string][g][i], g);
                             
@@ -478,12 +533,14 @@ let handleCode = (request, response, syncNumber) => {
                             allClientValues[round_string][g]['rand'][allIdIn[round_string][g][i]] = value;
                             allClientValues[round_string][g]['const'][allIdIn[round_string][g][i]] = alt;
                             
+                            // global information about choices available to each client
                             allData[round_string][g][iter_string]['rand'][allIdIn[round_string][g][i]] = value;
                             allData[round_string][g][iter_string]['const'][allIdIn[round_string][g][i]] = alt;
                             
                             allClientValues[round_string][g][allIdIn[round_string][g][i]] = value;
                         }
                         for (var i = 0; i < allIdOut[round_string][g].length; i++) {
+                            // for everyone who is out, give them new random/constant values to choose from
                             let value = choiceAlgorithms['constant'](allData[round_string][g], allIdOut[round_string][g][i], (g - 1) * people_per_group + allIdOut[round_string][g][i], g);
                             let alt = choiceAlgorithms['random'](allData[round_string][g], allIdOut[round_string][g][i], (g - 1) * people_per_group + allIdOut[round_string][g][i], g);
                             
@@ -491,22 +548,25 @@ let handleCode = (request, response, syncNumber) => {
                             allClientValues[round_string][g]['const'][allIdOut[round_string][g][i]] = value;
                             allClientValues[round_string][g]['rand'][allIdOut[round_string][g][i]] = alt;
                             
+                            // global information about choices available to each client
                             allData[round_string][g][iter_string]['const'][allIdOut[round_string][g][i]] = value;
                             allData[round_string][g][iter_string]['rand'][allIdOut[round_string][g][i]] = alt;
                             
-                            allData[round_string][g]
                             allClientValues[round_string][g][allIdOut[round_string][g][i]] = value;
                         }
                         
+                        // basic stat information about initial choices
                         allData[round_string][g][iter_string]["average_new_offer"] = stats.mu(allClientValues[round_string][g]['random']) || 0;
                         allData[round_string][g][iter_string]["average_accumulation"] = stats.mu(allData[round_string][g][iter_string]["accumulation"]["values"]);
                         
+                        // if the test is about to be over, finally give information about the number of subjects/available ids in the test
                         if (monResponse.length > 0) {
                             allData[round_string][g]["number_of_clients"] = numberOfSubjects;
                             allData[round_string][g]["client_ids"] = rawCachedIds;
                         }
                     }
                     
+                    // end the game
                     if (monResponse.length > 0) {
                         testingInProgress = false;
                         
@@ -516,14 +576,17 @@ let handleCode = (request, response, syncNumber) => {
                             
                             let data = allData[round_string][group], clientValues = allClientValues[round_string][group], id_in = allIdIn[round_string][group], id_out = allIdOut[round_string][group];
                             
+                            // Append information to the output csv object
                             // (Player Identifer,) Player ID, Group ID, Choice (P or Q, 1 -> P, 0 -> Q), Payoff, Iteration, Round, Theta, X, x, Q
                             
                             csvPlayers[gid + " " + (startIter + 1) + " " + (startRound + 1)] = `${gid},${cid},${group},${data[iter_string]['choice'][j] == 'random' ? 0 : 1},${data[iter_string]['values'][cid]},${data['iterations']},${startRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${old_client_average[group]},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
                             
                             return "finalize_end";
                         });
+                        // csvWrapper contains the csv information from all rounds
                         csvWrapper[round_string] = cloneObj(csvPlayers);
                         
+                        // write the output csv file
                         let string = makeDataOutput(collectedData);
                         let outStr = `data/output${new Date().getTime()}.${getOutputLastName()}`;
                         
@@ -539,20 +602,25 @@ let handleCode = (request, response, syncNumber) => {
                                 currRound = -1;
                             }
                             
+                            // tell the monitor where the output game data is stored
                             let rep = monResponse.pop();
                             rep.writeHead(200, { "Content-Type": "text/plain" });
                             rep.end(`/${outStr}`);
                         });
                     }
+                    // game isn't over, so just store csv information/tell each client the iteration has changed
                     else {
                         let groupAverage = {};
                         let groupMax = {};
+                        
+                        // update groupAverage/groupMax information to deliver to clients
                         for (let i = 1; i <= numberOfGroups; i++) {
                             groupAverage[i] = stats.mu(allClientValues[round_string][i]['random']) || 0;
                             groupMax[i] = stats.max(allClientValues[round_string][i]['random']) || 0;
                             maxYValue[i] = (!maxYValue[i] || groupMax[i] > maxYValue[i]) ? groupMax[i] : maxYValue[i];
                         }
                         
+                        // broadcast information to all clients
                         broadcast((i, client) => {
                             let j = client.realid, group = getGroupNumber(j), cid = getModulatedId(j);
                             let gid = rawCachedLookupIds[rawCachedIds.indexOf(client.id)];
@@ -563,9 +631,13 @@ let handleCode = (request, response, syncNumber) => {
                             let clientAverage = groupAverage[group];
                             let clientMax = maxYValue[group];
                             
+                            // store the following csv information:
                             // (Player Identifer,) Player ID, Group ID, Choice (P or Q, 1 -> P, 0 -> Q), Payoff, Iteration, Round, Theta, X, x, Q
                             
                             csvPlayers[gid + " " + (currIter + 1) + " " + (currRound + 1)] = `${gid},${cid},${group},${data[iter_string]['choice'][cid] == 'random' ? 0 : 1},${clientValues[cid]},${data['iterations']},${currRound + 1},${choiceAlgorithms.getTheta(data['iterations'] - 1, group)},${data[iter_string]['average_new_offer']},${practiceMode ? 1 : 0},${data[iter_string]['rand'][cid]},${data[iter_string]['const'][cid]}`;
+                            
+                            
+                            // deliver game product information to each client
                             
                             let stuff = { "value": clientValues[cid], "average_value": clientAverage, "message": "round_passed", "accumulation": data[iter_string]["accumulation"][cid], "average_accumulation": data[iter_string]["average_accumulation"], "iteration": data["iterations"], "in": id_in.length, "out": id_out.length, "subjects": numberOfSubjects, "max": clientMax, "choice": data[iter_string]["choice"][cid], "const": clientValues["const"][cid], "rand": clientValues["rand"][cid] };
                             
@@ -598,12 +670,15 @@ let handleCode = (request, response, syncNumber) => {
                     let val = 0, accum = 0;
                     let new_max = stats.max(clientValues['random']);
                     
+                    // if previous iteration data is available, graph the list of values and previous accumulation information from there
                     if (data[prev_iter_string]) {
                         val = data[prev_iter_string]['values'][cid];
                         accum = data[prev_iter_string]['accumulation'][cid];
                     }
                     
                     maxYValue[group] = (!maxYValue[group] || new_max > maxYValue[group]) ? new_max : maxYValue[group];
+                    
+                    // deliver graph information to each client
                     
                     let stuff = { "value": val, "average_value": stats.mu(clientValues['random']) || 0, "message": "graph_info", "accumulation": accum, "average_accumulation": data[iter_string]["average_accumulation"], "iteration": currIter + 1, "in": id_in.length, "out": id_out.length, "subjects": id_in.length + id_out.length, "choice": (id_in.indexOf(id) == -1 ? 'constant' : 'random'), "max": maxYValue[group], "const": clientValues["const"][cid], "rand": clientValues["rand"][cid] };
                     
@@ -630,36 +705,49 @@ let handleCode = (request, response, syncNumber) => {
     
 };
 
+/**
+ * Restart the test, for use after each round
+ * @param round_string -> The string representing the current round; looks like 'Round #'
+ */
 let restartTest = (round_string) => {
     currIter = 0;
     
     let iter_string = `Iteration ${currIter + 1}`;
     
+    // We're going to the next round
     ++currRound;
     testingInProgress = true;
+    
+    // Update global info about the test
     numberOfSubjects = rawCachedIds.length;
     numberOfGroups = Math.ceil(numberOfSubjects / people_per_group);
     
+    // New round, new data to collect; create a storage place for it
     allData[round_string] = allData[round_string] || {};
     allClientSubmits[round_string] = allClientSubmits[round_string] ||{};
     
+    // ..that includes all client id_in/id_out value choices...
     allClientValues = allClientValues || {};
     allClientValues[round_string] = allClientValues[round_string] || {};
     
+    // ..and who is in
     allIdIn = allIdIn || {};
     allIdIn[round_string] = allIdIn[round_string] || {};
     
+    // ..and who is out
     allIdOut = allIdOut || {};
     allIdOut[round_string] = allIdOut[round_string] || {};
     
+    // and information to append to the output csv
     csvPlayers = {};
     
-    // j is each group
+    // j is each group; default the data of each round to the following object
     for (let j = 1; j <= numberOfGroups; j++)
         allData[round_string][j] = { "iterations": 0, "number_of_clients": 0, "client_ids": [] };
     
     // i is each group
     for (let i = 1; i <= numberOfGroups; i++) {
+        // expose data storage locations for each round, for each group; similar to validateInformationExistence
         allData[round_string][i] = {};
         allData[round_string][i][iter_string] = {};
         allData[round_string][i]["iterations"] = currIter;
@@ -679,8 +767,9 @@ let restartTest = (round_string) => {
         allData[round_string][i][iter_string]['const'] = {};
         
         // j is each subject
-        
+        // for each subject in the ith group..
         for (var j = 1; j <= Math.min(people_per_group, numberOfSubjects - (i - 1) * people_per_group); j++) {
+            // give the jth subject a random and constant value to choose from
             let value = choiceAlgorithms['random'](allData[round_string][i], j, (i - 1) * people_per_group + j, i);
             let alt = choiceAlgorithms['constant'](allData[round_string][i], j, (i - 1) * people_per_group + j, i);
             
@@ -693,6 +782,7 @@ let restartTest = (round_string) => {
             allClientValues[round_string][i]['const'][j] = alt;
             allData[round_string][i][iter_string]['const'][j] = alt;
             
+            // by default, make all players be in
             allIdIn[round_string][i].push(j);
         }
     }
@@ -700,6 +790,14 @@ let restartTest = (round_string) => {
 
 // Makes sure various items are in the current data set
 let validateInformationExistence = (iter_string, round_string, group) => {
+    // the following appears complicated but each dimension represents a new revision requested by JP
+    // for each round...
+    //      for each group...
+    //          for each iteration...
+    //              [some information stored in this iteration]
+    // make sure that each part of the hierarchy is set to an empty object, so that information can be
+    // set later
+    
     allClientValues[round_string] = allClientValues[round_string] || {};
     allClientValues[round_string][group] = allClientValues[round_string][group] || {};
     allClientValues[round_string][group]['random'] = allClientValues[round_string][group]['random'] || [];
@@ -750,6 +848,7 @@ let makeDataOutput = (data) => {
         let organized = {};
         
         // cid + " " + group + " " + (startIter + 1) + " " + (startRound + 1)
+        // O(n) sorting algorithm to sort by global id
         for (let i in csvWrapper) {
             organized[i] = organized[i] || [];
             
@@ -760,6 +859,7 @@ let makeDataOutput = (data) => {
             }
         }
         
+        // Append all the output csv information to the output string
         for (let i in organized) {
             r += i + "\n" + s;
             for (let j in organized[i])
@@ -769,7 +869,7 @@ let makeDataOutput = (data) => {
         return r;
     }
     else
-        return jsonStringify(data);
+        return jsonStringify(data);     // by default, return data in raw json format
 };
 
 // Send a message to all clients
@@ -777,7 +877,7 @@ let makeDataOutput = (data) => {
     Note that
         for (client of clients)
             client.respond(typeof message == "function" ? message([...]) : message);
-    does not work for this task.
+    does not work; hence why this method exists
 */
 function broadcast(message) {
     var func = typeof message == "function", ind = clients.length;

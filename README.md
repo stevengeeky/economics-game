@@ -58,6 +58,12 @@ In `/scripts/choiceAlgorithms.js`, there are methods for `randomValue` and `cons
 
 ## Release Notes
 
+1.0.4.3
+
+* Added more comments
+* Added ability for subjects to visualize x even if they are currently out (configurable in config.json)
+* Changed randomization algorithm slightly
+
 1.0.4.2
 
 * Revised global ids to display as the initially set url ids of each client

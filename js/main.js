@@ -48,6 +48,9 @@ let myData = [];
 // For checking to see if the current iteration has changed in between server pends
 let iterId;
 
+// product delivered from server
+let x_visible_to_out_subjects = false;
+
 let switchButton;
 let global_f;
 
@@ -186,6 +189,10 @@ let updateData = (id) => {
  * Begin testing, for this client
  */
 let startTesting = (o) => {
+    // Server-delivered options
+    if (o.x_visible_to_out_subjects)
+        x_visible_to_out_subjects = o.x_visible_to_out_subjects;
+    
     // Make all the stuff
     setCurrentChoice();
     let welcome = target(".welcome");
@@ -334,7 +341,7 @@ let drawData = (o) => {
     let startValue = startYValue, surpassed = false;
 
     if (o)
-        myData[Math.max(o.iteration - 1, 0)] = [o.value, o.average_value];
+        myData[Math.max(o.iteration - 1, 0)] = [o.value, o.rand, o.average_value];
     
     var chart_data = new google.visualization.DataTable();
     var options;
@@ -343,8 +350,11 @@ let drawData = (o) => {
     var drawIter = Math.round(Math.round((maxValue - minValue) * drawPos) + minValue);*/
     var drawIter = maxValue - 1;
     
+    // adding line values to the chart
     chart_data.addColumn('number', 'Period');
     chart_data.addColumn('number', 'Value (me)');
+    if (x_visible_to_out_subjects)
+        chart_data.addColumn('number', 'IN value (x)');
     chart_data.addColumn('number', 'Average Value (group)');
     
     chart_data.addColumn('number', 'Q Payout');
@@ -352,12 +362,14 @@ let drawData = (o) => {
     
     var array = [], temp;
     
+    // appending data to the chart
     for (var i = minValue; i <= maxValue; i++) {
         if (i >= myData.length - 1)
-            temp = [ i + 1, null, null ];
+            temp = x_visible_to_out_subjects ? [ i + 1, null, null, null ] : [ i + 1, null, null ];
         else {
-            temp = myData[i] || [ i + 1, null, null ];
-            temp = [ i + 1, temp[0], temp[1] == 0 ? null : temp[1] ];
+            temp = myData[i] || (x_visible_to_out_subjects ? [ i + 1, null, null, null ] : [ i + 1, null, null ]);
+            temp = x_visible_to_out_subjects ? [ i + 1, temp[0], temp[1], temp[2] == 0 ? null : temp[2] ] : [ i + 1, temp[0], temp[2] == 0 ? null : temp[2] ];
+            
             if (!surpassed && temp[1] < startValue && i > minValue)
                 surpassed = true;
         }
@@ -374,13 +386,22 @@ let drawData = (o) => {
     
     chart_data.addRows(array);
     
+    // line/series information
+    var series = x_visible_to_out_subjects ? {
+        0: { pointSize: 4 },
+        1: { lineWidth: 2, lineDashStyle: [4, 4] },
+        2: { lineWidth: 3 },
+        3: { lineWidth: 2 },
+    } : {
+        0: { pointSize: 4 },
+        1: { lineWidth: 3 },
+        2: { lineWidth: 2 },
+    };
+    var colors = x_visible_to_out_subjects ? ['blue', 'lightblue', 'darkgreen', 'black'] : ['blue', 'darkgreen', 'black'];
+    
     options = {
         title: "Your Data",
-        series: {
-            0: { pointSize: 4 },
-            1: { pointSize: 3 },
-            2: { lineWidth: 2 }
-        },
+        series,
         hAxis: {
             title: "Period"
         },
@@ -390,51 +411,26 @@ let drawData = (o) => {
         legend: {
             position: "bottom"
         },
-        colors: ['blue', 'darkgreen', 'black']
+        colors
     };
+    
+    // change the uppermost viewport clamp on the graph if..
+    // ..the max value of the current player's line goes above the graph
     if (!surpassed) {
         options.vAxis.viewWindow = {
             min: startValue
         };
     }
+    // ..or the server requests a specific upper bound
     if (o && o.max) {
         options.vAxis.viewWindow = options.vAxis.viewWindow || {};
         options.vAxis.viewWindow.max = o.max;
     }
     
+    // draw the chart
     if (chart)
         chart.draw(chart_data, options);
 };
-
-/**
- * Draws a normal distribution curve onto the plot
- * @param u -> mu, the inputted mean for the curve
- * @param Y -> gamma, the inputted variance for the curve
- * @param args -> Any additional arguments, like the number of points, where the curve domain starts, and where it ends ('points', 'start', 'end')
- */
-/*let drawN = (u, Y, args) => {
-    args = args || {};
-    var points = args.points || 1000, start = args.start || -10, end = args.end || 10;
-    var N = stats.N(u, Y);
-    
-    var array = [['Time', `N(${mu}, ${gamma})(x)`]];
-    for (var i = start; i <= end; i += (end - start) / points)
-        array.push([i, N(i)]);
-    
-    var data = google.visualization.arrayToDataTable(array);
-    
-    var options = {
-        //pointsVisible: true,
-        title: "Normal Distribution Curve",
-        curveType: "function",
-        legend: {
-            position: "right"
-        }
-    };
-    
-    if (chart)
-        chart.draw(data, options);
-};*/
 
 /**
  * Rounds a value to a selected number of digits (default: 3)

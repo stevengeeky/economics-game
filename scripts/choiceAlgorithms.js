@@ -18,44 +18,12 @@ let c = 80;
  * Reminder:        x_t = Theta_t + epsilon_t, where epsilon_t ~ N(0, Gamma_x^-1)
  *           and    Theta_tp1 = alpha + rho(Theta_t - alpha) + sigma_Theta * omega_tp1
  */
-
-/*
-let Theta_0 = () => 10,
-    // Gamma_x^-1
-    Gamma_xm1 = 1 / .2,
-    
-    // epsilon
-    epsilon = () => stats.normal_distribution() * Math.sqrt(Gamma_xm1),
-    
-    // alpha
-    alpha = () => 10,
-    
-    // rho
-    rho = () => .95,
-    
-    // sigma
-    sigma = () => .5,
-    
-    // omega
-    omega = (t) => stats.normal_distribution();*/
-
 let Theta_0 = () => 100,
-    // Gamma_x^-1
     Gamma_xm1 = 1 / .001,
-    
-    // epsilon
     epsilon = () => stats.normal_distribution() * Math.sqrt(Gamma_xm1),
-    
-    // alpha
     alpha = () => 100,
-    
-    // rho
     rho = () => .99,
-    
-    // sigma
     sigma = () => 6,
-    
-    // omega
     omega = (t) => stats.normal_distribution();
 
 // Calculate next theta
