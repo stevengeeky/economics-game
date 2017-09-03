@@ -140,7 +140,7 @@ In other words, if you would like to modify how constant or random values are di
 
 ## Release Notes
 
-1.0.4.4
+1.0.5
 
 * Made readme and general setup instructions a little bit more clearer
 

@@ -1,6 +1,6 @@
 {
   "name": "economics-game",
-  "version": "1.0.4.4",
+  "version": "1.0.5",
   "description": "economics game",
   "main": "app.js",
   "engines": {
