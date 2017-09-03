@@ -2,3 +2,4 @@ data
 .vscode
 jsconfig.json
 typings.json
+data/*
