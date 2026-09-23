@@ -10,7 +10,8 @@
 
 let startYValue = 0;
 
-let isBot = false;
+// botSubject.html sets window.isBot before loading this file
+let isBot = !!window.isBot;
 let botBehavior = () => {
     return ['random', 'constant'][Math.floor(Math.random() * 2)];
 };
@@ -23,10 +24,6 @@ let waitTime = 1;
 // Buttons
 let switchButtonText = "SWITCH";
 let switchButtonDisabledText = () => `(Switched)`;
-
-// Graph Flags
-let graphMinValueSYAxis = null;
-let graphMaxValueSYAxis = null;
 
 /* End Flags */
 
@@ -45,14 +42,16 @@ let chart;
 // For drawing
 let myData = [];
 
-// For checking to see if the current iteration has changed in between server pends
-let iterId;
-
 // product delivered from server
 let x_visible_to_out_subjects = false;
 
 let switchButton;
 let global_f;
+
+// The line to the server
+let socket;
+// Once the server has turned us away or killed us, stop reconnecting
+let dead = false;
 
 // Load the chart
 function awake() {
@@ -67,90 +66,81 @@ function init() {
 }
 
 /**
- * Let the server know the client is still alive
+ * Open the socket to the server and join the test; reconnects (with the same id) if the line drops
  */
-function still_alive() {
-    ajax(`@${gid}&alive`);
-    setTimeout(still_alive, 500);
+function connect() {
+    socket = new WebSocket(`${window.location.protocol == "https:" ? "wss" : "ws"}://${window.location.host}/ws`);
+
+    socket.addEventListener("open", () => send({ "type": "join", "id": gid, "realid": real_id }));
+    socket.addEventListener("message", (e) => receive(JSON.parse(e.data)));
+    socket.addEventListener("close", () => {
+        if (!dead)
+            setTimeout(connect, 1000);
+    });
 }
 
 /**
- * Pend for server responses
+ * Handle a server message
  */
-function pend() {
-    ajax(`@${gid}&pend`, (json) => {
-        // Server made an error, so repend it
-        if (!json) {
-            pend();
-            return;
-        }
-        
-        // Get the server message
-        var o = JSON.parse(json);
-        var message = o.message;
-        
-        // Clients not allowed, let the clients know the server isn't accepting them yet
-        if (message == "clients_not_accepted") {
-            target(".line_chart").style.display = "none";
-            target(".welcome").innerHTML = "Sorry, but subjects are currently not permitted to join this test. Try reloading the page or contacting your test administrator.";
-            return;
-        }
-        
-        // Testing has begun, so initiate testing for this client
-        else if (message == "begin") {
-            target(".welcome").style.opacity = 0;
-            setTimeout(() => {
-                target(".line_chart").style.display = "";
-                drawData(o);
-                
-                iterId = Math.random();
-                updateData(iterId);
-                
-                startTesting(o);
-            }, 1000);
-        }
-        
-        // The iteration has passed, so move on to the next iteration
-        else if (message == "round_passed") {
+function receive(o) {
+    var message = o.message;
+
+    // Clients not allowed, let the clients know the server isn't accepting them yet
+    if (message == "clients_not_accepted") {
+        dead = true;
+        target(".line_chart").style.display = "none";
+        target(".welcome").innerHTML = "Sorry, but subjects are currently not permitted to join this test. Try reloading the page or contacting your test administrator.";
+    }
+
+    // Testing has begun, so initiate testing for this client
+    else if (message == "begin") {
+        target(".welcome").style.opacity = 0;
+        setTimeout(() => {
+            target(".line_chart").style.display = "";
             drawData(o);
-            
-            iterId = Math.random();
-            updateData(iterId);
-            
-            nextIter(o);
-        }
-        
-        // The round has passed, so reset all iterations and go to the next round
-        else if (message == "restart") {
-            currentChoice = 'random';
-            real_id = o.new_realid || real_id;
-            
-            myData = [];
-            
-            nextRound(o, iterId);
-        }
-        
-        // The test is over, so end the test for this client
-        else if (message == "end") {
-            
-        }
-        
-        // The test is over, and the administrator is responded to
-        else if (message == "finalize_end") {
-            endGame(o);
-            return;
-        }
-        
-        // Kills this client
-        else if (message == "kill") {
-            document.body.innerHTML = "";
-            window.location.reload();
-            return;
-        }
-        
-        // We just pended the server and got a response, so repend it for more responses
-        pend();
-    });
+            requestGraphInfo();
+
+            startTesting(o);
+        }, 1000);
+    }
+
+    // Live graph information (sent whenever somebody in the grouping chooses)
+    else if (message == "graph_info")
+        updateData(o);
+
+    // The iteration has passed, so move on to the next iteration
+    else if (message == "round_passed") {
+        drawData(o);
+        requestGraphInfo();
+
+        nextIter(o);
+    }
+
+    // The round has passed, so reset all iterations and go to the next round
+    else if (message == "restart") {
+        currentChoice = 'random';
+        real_id = o.new_realid || real_id;
+
+        myData = [];
+
+        nextRound(o);
+    }
+
+    // The test is over, so end the test for this client
+    else if (message == "end") {
+
+    }
+
+    // The test is over, and the administrator is responded to
+    else if (message == "finalize_end")
+        endGame(o);
+
+    // Kills this client
+    else if (message == "kill") {
+        dead = true;
+        document.body.innerHTML = "";
+        window.location.reload();
+    }
 }
 
 /**
@@ -161,28 +151,23 @@ let setCurrentChoice = () => {
 };
 
 /**
+ * Ask the server for the current graph information
+ */
+let requestGraphInfo = () => {
+    send({ "type": "graph_info" });
+};
+
+/**
  * Updates the chart data in real time
  */
-let updateData = (id) => {
-    // If true, the round has changed
+let updateData = (o) => {
     let player_choice = target(".player_choice"),
         payout = target(".payout");
-    
-    if (id != iterId)
-        return;
-    
-    ajax(`@${gid}&graph_info`, (text) => {
-        if (id != iterId)
-            return;
-        
-        let o = JSON.parse(text);
-        player_choice.innerHTML = `<b>${o.in}/${o.subjects}</b> in your group chose P`;
-        payout.innerHTML = `Your actual payoff is ${approx(o.value)}; cumulative is ${approx(o.accumulation)}`;
-        
-        drawData(o);
-        
-        setTimeout(() => updateData(id), 400);
-    });
+
+    player_choice.innerHTML = `<b>${o.in}/${o.subjects}</b> in your group chose P`;
+    payout.innerHTML = `Your actual payoff is ${approx(o.value)}; cumulative is ${approx(o.accumulation)}`;
+
+    drawData(o);
 };
 
 /**
@@ -192,28 +177,28 @@ let startTesting = (o) => {
     // Server-delivered options
     if (o.x_visible_to_out_subjects)
         x_visible_to_out_subjects = o.x_visible_to_out_subjects;
-    
+
     // Make all the stuff
     setCurrentChoice();
     let welcome = target(".welcome");
-    
+
     welcome.innerHTML = "";
     welcome.style.opacity = 1;
-    
+
     switchButton = create("button");
     switchButton.innerHTML = typeof switchButtonText == "function" ? switchButtonText() : switchButtonText;
-    
+
     // Add all the stuff
     welcome.appendChild(switchButton);
     welcome.style["text-align"] = "center";
-    
+
     // Add choice event listener
     global_f = setupTimer();
     switchButton.addEventListener("click", () => {
         doSwitch();
         global_f();
     });
-    
+
     if (isBot)
         botChoose(o);
 };
@@ -224,9 +209,9 @@ let startTesting = (o) => {
 let nextIter = (o) => {
     switchButton.innerHTML = typeof switchButtonText == "function" ? switchButtonText() : switchButtonText;
     switchButton.disabled = false;
-    
+
     global_f = setupTimer();
-    
+
     if (isBot)
         botChoose(o);
 };
@@ -234,7 +219,7 @@ let nextIter = (o) => {
 /**
  * Go to the next round
  */
-let nextRound = (o, id) => {
+let nextRound = (o) => {
     target(".timer").innerHTML = "";
     target(".current_choice").innerHTML = "";
     target(".line_chart").style.display = "none";
@@ -242,18 +227,16 @@ let nextRound = (o, id) => {
     target(".player_choice").innerHTML = "";
     target(".welcome").innerHTML = `Now moving on to round ${o.round}`;
     target(".welcome").style.opacity = 0;
-    
+
     setTimeout(() => {
         target(".welcome").style.opacity = 1;
-        
+
         setTimeout(() => {
             setTimeout(() => {
                 target(".line_chart").style.display = "";
                 drawData(o);
-                
-                iterId = Math.random();
-                updateData(iterId);
-                
+                requestGraphInfo();
+
                 startTesting(o);
             }, 1000);
         }, 3000);
@@ -264,6 +247,7 @@ let nextRound = (o, id) => {
  * Ends the game, or at least for this client
  */
 let endGame = () => {
+    dead = true;
     target(".timer").innerHTML = "";
     target(".current_choice").innerHTML = "";
     target(".welcome").innerHTML = "Thank you for participating. The test is over now.";
@@ -275,8 +259,8 @@ let botChoose = (o) =>{
     setTimeout(function() {
         let oldChoice = currentChoice;
         let _currentChoice = (botBehavior(o.value, o.average_value, o["new_offer"], o.accumulation) + "").toLowerCase();
-        if (['random', 'constant'].indexOf(currentChoice) == -1)
-            throw `Invalid bot return choice: \'${currentChoice}\'`;
+        if (['random', 'constant'].indexOf(_currentChoice) == -1)
+            throw `Invalid bot return choice: \'${_currentChoice}\'`;
         if (oldChoice != _currentChoice)
             switchButton.click();
         setCurrentChoice();
@@ -291,14 +275,14 @@ let setupTimer = () => {
     let count = waitTime;
     let setTimerText = () => { timer.innerHTML = `You have <b>${count}s</b> to switch or stay`; };
     setTimerText();
-    
+
     let I;
     let f = () => {
         timer.innerHTML = "";
         clearInterval(I);
         submitChoice(currentChoice);
     };
-    
+
     let h = () => {
         if (--count == 0)
             f();
@@ -306,7 +290,7 @@ let setupTimer = () => {
             setTimerText();
     };
     I = setInterval(h, 1000);
-    
+
     return f;
 };
 
@@ -327,7 +311,7 @@ function doSwitch() {
  * @param choice -> [ 'random' | 'constant' ]
  */
 let submitChoice = (choice) => {
-    ajax(`@${gid}&submit&choice='${choice}'`);
+    send({ "type": "submit", "choice": choice });
 };
 
 /**
@@ -342,34 +326,32 @@ let drawData = (o) => {
 
     if (o)
         myData[Math.max(o.iteration - 1, 0)] = [o.value, o.rand, o.average_value];
-    
+
     var chart_data = new google.visualization.DataTable();
     var options;
-    
-    /*var drawPos = 1;
-    var drawIter = Math.round(Math.round((maxValue - minValue) * drawPos) + minValue);*/
+
     var drawIter = maxValue - 1;
-    
+
     // adding line values to the chart
     chart_data.addColumn('number', 'Period');
     chart_data.addColumn('number', 'Value (me)');
     if (x_visible_to_out_subjects)
         chart_data.addColumn('number', 'IN value (x)');
     chart_data.addColumn('number', 'Average Value (group)');
-    
+
     chart_data.addColumn('number', 'Q Payout');
     chart_data.addColumn({ 'role': 'annotation', 'type': 'string' });
-    
+
     var array = [], temp;
-    
+
     // appending data to the chart
     for (var i = minValue; i <= maxValue; i++) {
         if (i >= myData.length - 1)
             temp = x_visible_to_out_subjects ? [ i + 1, null, null, null ] : [ i + 1, null, null ];
         else {
             temp = myData[i] || (x_visible_to_out_subjects ? [ i + 1, null, null, null ] : [ i + 1, null, null ]);
-            temp = x_visible_to_out_subjects ? [ i + 1, temp[0], temp[1], temp[2] == 0 ? null : temp[2] ] : [ i + 1, temp[0], temp[2] == 0 ? null : temp[2] ];
-            
+            temp = x_visible_to_out_subjects ? [ i + 1, temp[0], typeof temp[1] == "number" ? temp[1] : null, temp[2] == 0 ? null : temp[2] ] : [ i + 1, temp[0], temp[2] == 0 ? null : temp[2] ];
+
             if (!surpassed && temp[1] < startValue && i > minValue)
                 surpassed = true;
         }
@@ -383,9 +365,9 @@ let drawData = (o) => {
         }
         array.push(temp);
     }
-    
+
     chart_data.addRows(array);
-    
+
     // line/series information
     var series = x_visible_to_out_subjects ? {
         0: { pointSize: 4 },
@@ -398,7 +380,7 @@ let drawData = (o) => {
         2: { lineWidth: 2 },
     };
     var colors = x_visible_to_out_subjects ? ['blue', 'lightblue', 'darkgreen', 'black'] : ['blue', 'darkgreen', 'black'];
-    
+
     options = {
         title: "Your Data",
         series,
@@ -413,7 +395,7 @@ let drawData = (o) => {
         },
         colors
     };
-    
+
     // change the uppermost viewport clamp on the graph if..
     // ..the max value of the current player's line goes above the graph
     if (!surpassed) {
@@ -426,7 +408,7 @@ let drawData = (o) => {
         options.vAxis.viewWindow = options.vAxis.viewWindow || {};
         options.vAxis.viewWindow.max = o.max;
     }
-    
+
     // draw the chart
     if (chart)
         chart.draw(chart_data, options);
@@ -442,18 +424,11 @@ let approx = (value, digits) => {
 };
 
 /**
- * Helper function for quickly submitting and receiving ajax requests
+ * Helper function for sending a message to the server
  */
-function ajax(url, callback) {
-    let aj = new XMLHttpRequest();
-    aj.open("GET", `${url}&realid='${real_id}'`, true);
-    aj.send();
-    
-    if (typeof callback == "function")
-        aj.addEventListener("readystatechange", function() {
-            if (aj.readyState == 4)
-                callback.call(aj, aj.responseText);
-        });
+function send(message) {
+    if (socket && socket.readyState == WebSocket.OPEN)
+        socket.send(JSON.stringify(message));
 }
 
 /**
@@ -463,27 +438,6 @@ function target(id) {
     return /^\./.test(id) ? document.getElementsByClassName(id.substring(1))[0] :
            /^#/.test(id) ? document.getElementById(id.substring(1)) :
            document.getElementsByTagName(id)[0];
-}
-
-/**
- * Never used, but useful; turns a string into delimited ascii character values
- */
-function ascii(text) {
-    var r = "";
-    for (var i = 0; i < text.length; i++)
-        r += "/" + text.charCodeAt(i);
-    return r;
-}
-/**
- * Turns a set of delimited ascii character values into a regular string
- */
-function unascii(text) {
-    var r = "";
-    text.replace(/\/[0-9]+/g, function(m) {
-        r += String.fromCharCode(m.substring(1));
-        return m;
-    });
-    return r;
 }
 
 /**
@@ -506,9 +460,9 @@ function resized() {
         drawData();
 }
 
-// Prevent the user from actually reloading with ctrl+r (f5 is ignored, however)
+// Space bar switches
 function keyDown(e) {
-    if (e.keyCode == 32) {
+    if (e.keyCode == 32 && switchButton) {
         e.preventDefault();
         switchButton.click();
     }
@@ -519,7 +473,6 @@ window.addEventListener("load", awake);
 window.addEventListener("resize", resized);
 window.addEventListener("keydown", keyDown);
 
-still_alive();
-pend();
+connect();
 
 }).call(window);
