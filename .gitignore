@@ -3,3 +3,4 @@ data
 jsconfig.json
 typings.json
 data/*
+node_modules
