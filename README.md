@@ -35,11 +35,15 @@ Additionally, all subjects are given what their current and cumulative payoff is
 The goal of the game is to gain as much accumulation as possible. -->
 
 # Usage
-> Make sure you have node.js and npm installed
+> Make sure you have node.js (22 or newer) and npm installed
 
 > Make sure you’ve downloaded algorithm.key from the file tree.
 
-Then `git clone https://github.com/stevengeeky/economics-game.git`.
+Then `git clone https://github.com/stevengeeky/economics-game.git`, `cd economics-game` and `npm install`.
+
+`npm start` serves the game (on the port in `config.json`), `npm test` plays a whole test against the server with simulated subjects and checks the output file (no browser or humans needed).
+
+Subjects, bots and the monitor each hold one websocket open to the server (at `/ws`); the server pushes every new period, round and graph update down it, so there is no polling. The message vocabulary is listed at the top of `app.js`.
 
 All of the options regarding how your test will be conducted are in `config.json`, it might look like this:
 
@@ -73,13 +77,13 @@ All of the options regarding how your test will be conducted are in `config.json
 
 **"constant_groups"** => An array of groupings to not randomize across rounds. If this value were set to [1], for example, it means that subjects within the first grouping would remain in the first grouping throughout the entirety of the game.
 
-**"killTimeout"** => Might never be used in production, but for debugging this determines how long to wait until killing off a stale subject.
+**"killTimeout"** => How long (in milliseconds) to wait after a subject's connection drops before that subject is removed from the test; `"null"` means never remove anybody (a subject who comes back within this time, e.g. after a network blip, carries on where they were).
 
-**"max_sync_attempts"** => For debugging, this determines how many times the server should try and recommunicate with a subject until that subject is considered stale.
+**"max_sync_attempts"** => No longer used (it belonged to the polling transport); it is harmless to leave it in an old `config.json`.
 
 ## Test Setup for the Test Monitor
 
-Serve the testing environment: do `./start.sh` at the root of your cloned repo.
+Serve the testing environment: do `npm start` (or `./start.sh`) at the root of your cloned repo.
 
 The test monitor oversees when each test starts and ends. In order to claim to be a test monitor, go to `/monitor` (in your browser) and drag `algorithm.key` into the page. This is how authentication takes place. If authorized, you should now see a list of monitor controls.
 
@@ -88,6 +92,8 @@ To let subjects join the test, click 'Start Accepting Subjects.' After a suffici
 ## Test Setup for Subjects
 
 For subjects to be able to join the test, the test monitor must first allow subjects to join the test. Then, each subject should go to `/subject?id=[their_subject_number]`, so subject 1 should go to `/subject?id=1`, subject 2 goes to `/subject?id=2` and so on. These ids will additionally be the same as the global ids in the resulting output csv file after the test has ended.
+
+To smoke-test a setup without any humans, open `/bot?id=[number]` instead: it is the subject page with a bot making the decisions (see `botBehavior` at the top of `/js/main.js`).
 
 # How Subjects are Put Into Groupings
 
@@ -113,7 +119,7 @@ But grouping '1' will always be `[1, 2, 3]`. Groupings '2' and '3' will be rando
 
 If your served test stops prematurely either due to a bug or an external hosting provider, all testing data is cached after each round in the data directory, so you can still recover most of testing data. If you discover a bug of any sort or simply encounter confusion or usage problems, feel free to open up an issue.
 
-Further, if you would like to improve any part of this application in any way (such as exchanging out endless server pings with websockets), do feel free to fork and pull request your updates.
+Further, if you would like to improve any part of this application in any way, do feel free to fork and pull request your updates.
 
 <!-- Then, you will have access to monitor tools and you can manage a new test.
 
@@ -139,6 +145,15 @@ In `/scripts/choiceAlgorithms.js`, there are methods for `randomValue` and `cons
 In other words, if you would like to modify how constant or random values are distributed to each client in each grouping in each group, `/scripts/choiceAlgorithms.js` is the place to do it.
 
 ## Release Notes
+
+1.1.0
+
+* Subjects, bots and the monitor talk to the server over a websocket instead of a queue of GET requests (#3); the server pushes periods, rounds, graph updates and monitor info as they happen
+* `npm start` runs the server, `npm test` plays a whole test with simulated subjects and checks the output csv against the payoff rules
+* The bot subject page works again (`/bot?id=[number]`), and `/subject?id=[number]` is served as documented
+* Subjects who are *out* are no longer sent x unless `x_visible_to_out_subjects` is set
+* Fixed the output csv losing a period's rows when the monitor ends a test, and the `Choice` column of that last period for groupings after the first
+* Requires node.js 22 or newer; only `js/`, `css/` and the output files in `data/` are served to browsers
 
 1.0.5
 
