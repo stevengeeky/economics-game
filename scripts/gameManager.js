@@ -1,6 +1,5 @@
 /**
  * @name game manager
- * @author steven o'riley
  * @desc handles all game-based server operations
  *
  * This module knows nothing about http or sockets. app.js turns socket messages into calls on the

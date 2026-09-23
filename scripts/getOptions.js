@@ -1,6 +1,5 @@
 /**
  * @name get options
- * @author steven o'riley
  * @desc returns the options for the game as specified in config.json
  *       (next to app.js, or the file named by the ECONOMICS_GAME_CONFIG environment variable)
  */

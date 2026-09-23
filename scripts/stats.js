@@ -1,6 +1,5 @@
 /**
  * @name stats
- * @author steven o'riley
  * @desc contains a bunch of statistics functions which might be useful
  */
 

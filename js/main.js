@@ -1,6 +1,5 @@
 /**
  * @name main
- * @author steven o'riley
  * @desc for the main handling of subjects in participatory games
  */
 

@@ -1,6 +1,5 @@
 /**
  * @name choice algorithms
- * @author steven o'riley
  * @desc contains the methods called when a user or bot selects 'constant value' or 'random value'
  */
 

@@ -1,6 +1,5 @@
 /**
  * @name monitor
- * @author steven o'riley
  * @desc the interface which allows test administrators to monitor the test, that is:
  *          allow subjects to access the test
  *              and stop any more subjects from accessing the test

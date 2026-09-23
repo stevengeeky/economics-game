@@ -1,6 +1,5 @@
 /**
  * @name main server file
- * @author steven o'riley
  * @desc the main server file; serves the pages and bridges the websocket to the game
  *
  * Every subject and monitor holds one websocket open at /ws and speaks JSON:
